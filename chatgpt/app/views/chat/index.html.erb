@@ -1,0 +1,48 @@
+<h2>🤖 Mini ChatGPT</h2>
+<div id="chat" style="border:1px solid #444; padding:15px; height:600px; overflow-y:auto; background:#2b2b2b; color:#fff;"></div>
+<div id="typing" style="font-style:italic; color:#ccc; display:none; margin-bottom:5px;">Bot est en train d'écrire...</div>
+<input id="input" type="text" placeholder="Ton message...">
+<button onclick="send()">Envoyer</button>
+
+<script>
+async function send(){
+  let input = document.getElementById("input");
+  let msg = input.value.trim();
+  if(!msg) return;
+
+  let chat = document.getElementById("chat");
+  chat.innerHTML += `<div class="user"><b>Toi:</b> ${msg}</div>`;
+  input.value = "";
+
+  let typing = document.getElementById("typing");
+  typing.style.display="block";
+
+  let res = await fetch("/chat/chat", {
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:"message="+encodeURIComponent(msg)
+  });
+  let data = await res.json();
+  typing.style.display="none";
+
+  let botDiv = document.createElement("div");
+  botDiv.className="bot";
+  botDiv.innerHTML = `<div style="width:32px;height:32px;border-radius:50%;background:#7fff00;margin-right:8px;display:inline-block;animation:pulse 1s infinite;"></div><div><b>Bot:</b> <span id="bot-text"></span></div>`;
+  chat.appendChild(botDiv);
+
+  let botText = botDiv.querySelector("#bot-text");
+  let text = data.reply;
+  let i=0;
+  function typeLetter(){
+    if(i<text.length){botText.innerHTML+=text[i]; i++; setTimeout(typeLetter,20);}
+    else{chat.scrollTop=chat.scrollHeight;}
+  }
+  typeLetter();
+  chat.scrollTop=chat.scrollHeight;
+}
+
+document.getElementById("input").addEventListener("keypress",function(e){if(e.key==="Enter") send();});
+</script>
+<style>
+@keyframes pulse {0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
+</style>

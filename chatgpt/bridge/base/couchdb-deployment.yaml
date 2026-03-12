@@ -1,0 +1,55 @@
+#! couchdb-deployment.yaml
+# Generated code, do not edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: couchdb
+    namespace: chatgpt
+    labels:
+        com.docker.compose.project: chatgpt
+        com.docker.compose.service: couchdb
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            com.docker.compose.project: chatgpt
+            com.docker.compose.service: couchdb
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            labels:
+                com.docker.compose.project: chatgpt
+                com.docker.compose.service: couchdb
+                com.docker.compose.network.chatbot: "true"
+        spec:
+            containers:
+                - name: couchdb
+                  image: couchdb:3.4
+                  imagePullPolicy: IfNotPresent
+                  env:
+                    - name: COUCHDB_PASSWORD
+                      value: "admin"
+                    - name: COUCHDB_USER
+                      value: "admin"
+                  livenessProbe:
+                    exec:
+                        command: ['curl -f http://localhost:5984/_up']
+                    periodSeconds: 10
+                    initialDelaySeconds: 15
+                    timeoutSeconds: 5
+                    failureThreshold: 5
+                  ports:
+                    - name: couchdb-4369
+                      containerPort: 4369
+                    - name: couchdb-5984
+                      containerPort: 5984
+                    - name: couchdb-9100
+                      containerPort: 9100
+                  volumeMounts:
+                    - name: opt-couchdb-data
+                      mountPath: /opt/couchdb/data
+            volumes:
+                - name: opt-couchdb-data
+                  persistentVolumeClaim:
+                    claimName: couchdb-couchdb-data

@@ -1,0 +1,2 @@
+:repo:deb [trusted=yes] https://apache.jfrog.io/artifactory/couchdb-deb/ noble main
+couchdb

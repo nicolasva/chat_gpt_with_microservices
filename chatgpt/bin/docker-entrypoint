@@ -1,0 +1,20 @@
+#!/bin/bash -e
+
+# Enable jemalloc for reduced memory usage and latency.
+if [ -z "${LD_PRELOAD+x}" ]; then
+    LD_PRELOAD=$(find /usr/lib -name libjemalloc.so.2 -print -quit)
+    export LD_PRELOAD
+fi
+
+# In development with volume mounts, ensure gems are installed
+if [ "$RAILS_ENV" = "development" ] && [ -z "$BUNDLE_DEPLOYMENT" ]; then
+    bundle install --quiet 2>/dev/null || true
+fi
+
+# Wait for CouchDB and initialize databases before starting the server
+if [ -n "${COUCHDB_URL}" ] && [ "$1" != "bundle" ] && [ "$1" != "rake" ]; then
+    /rails/bin/wait-for-couchdb.sh
+    bundle exec rake couchdb:init 2>/dev/null || true
+fi
+
+exec "${@}"

@@ -1,0 +1,181 @@
+services:
+  couchdb:
+    image: couchdb:3.4
+    environment:
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: admin
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - chatbot
+
+  couchdb-setup:
+    image: curlimages/curl:latest
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        curl -s -X POST http://admin:admin@couchdb:5984/_cluster_setup \
+          -H "Content-Type: application/json" \
+          -d '{"action":"enable_single_node","username":"admin","password":"admin","bind_address":"0.0.0.0","port":5984}' || true
+        for db in _users _replicator _global_changes; do
+          curl -s -X PUT "http://admin:admin@couchdb:5984/$$db" || true
+        done
+        echo "CouchDB setup complete"
+    networks:
+      - chatbot
+
+  dataset-service:
+    build:
+      context: ../microservices/dataset-service
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
+    environment:
+      RACK_ENV: production
+      COUCHDB_URL: "http://admin:admin@couchdb:5984"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      couchdb-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - chatbot
+
+  search-service:
+    build:
+      context: ../microservices/search-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      RACK_ENV: production
+      TAVILY_API_KEY: "${TAVILY_API_KEY:-}"
+      NLP_SERVICE_URL: "http://nlp-service:3002"
+    depends_on:
+      nlp-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - chatbot
+
+  nlp-service:
+    build:
+      context: ../microservices/nlp-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      RACK_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - chatbot
+
+  weather-service:
+    build:
+      context: ../microservices/weather-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      RACK_ENV: production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - chatbot
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      RAILS_ENV: production
+      COUCHDB_URL: "http://admin:admin@couchdb:5984"
+      TAVILY_API_KEY: "${TAVILY_API_KEY:-}"
+      RAILS_MASTER_KEY: "${RAILS_MASTER_KEY:-}"
+      RAILS_MAX_THREADS: "3"
+      RAILS_LOG_LEVEL: info
+      REDIS_URL: "redis://redis:6379/0"
+      WEATHER_SERVICE_URL: "http://weather-service:3001"
+      NLP_SERVICE_URL: "http://nlp-service:3002"
+      SEARCH_SERVICE_URL: "http://search-service:3003"
+      DATASET_SERVICE_URL: "http://dataset-service:3004"
+    ports:
+      - "3000:80"
+    depends_on:
+      couchdb:
+        condition: service_healthy
+      couchdb-setup:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      weather-service:
+        condition: service_healthy
+      nlp-service:
+        condition: service_healthy
+      search-service:
+        condition: service_healthy
+      dataset-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - chatbot
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - chatbot
+
+volumes:
+  couchdb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  chatbot:
+    driver: bridge

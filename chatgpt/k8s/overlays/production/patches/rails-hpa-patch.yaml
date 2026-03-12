@@ -1,0 +1,8 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: chatbot-web-hpa
+  namespace: chatbot
+spec:
+  minReplicas: 3
+  maxReplicas: 15

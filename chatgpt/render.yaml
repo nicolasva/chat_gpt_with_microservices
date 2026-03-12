@@ -1,0 +1,25 @@
+# Render Blueprint - Infrastructure as Code
+# Deploy: connect GitHub repo on https://dashboard.render.com
+# Docs: https://docs.render.com/blueprint-spec
+
+services:
+  - type: web
+    name: minichatgpt
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    plan: free
+    region: frankfurt
+    healthCheckPath: /up
+    envVars:
+      - key: RAILS_MASTER_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: RAILS_ENV
+        value: production
+      - key: COUCHDB_URL
+        value: http://admin:admin@127.0.0.1:5984
+      - key: RAILS_MAX_THREADS
+        value: 3
+      - key: RAILS_LOG_LEVEL
+        value: info

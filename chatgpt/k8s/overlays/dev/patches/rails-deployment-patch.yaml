@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-web
+  namespace: chatbot
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: rails
+          image: chatbot:dev
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

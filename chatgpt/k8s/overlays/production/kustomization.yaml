@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  - path: patches/rails-deployment-patch.yaml
+  - path: patches/couchdb-statefulset-patch.yaml
+  - path: patches/ingress-patch.yaml
+  - path: patches/rails-hpa-patch.yaml
+
+images:
+  - name: chatbot
+    newName: ghcr.io/your-org/chatbot
+    newTag: latest

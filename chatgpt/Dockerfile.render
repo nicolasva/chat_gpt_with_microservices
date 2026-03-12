@@ -1,0 +1,71 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for Render deployment (Rails + CouchDB in one container)
+# Strategy: use CouchDB as base (all native deps guaranteed) + install Ruby on top
+
+ARG RUBY_VERSION=3.4.4
+
+# Stage 1: Build gems + assets (Ruby image for compilation tools)
+FROM docker.io/library/ruby:$RUBY_VERSION-slim AS build
+WORKDIR /rails
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config curl && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_PATH="/usr/local/bundle" \
+    BUNDLE_WITHOUT="development"
+
+COPY Gemfile Gemfile.lock ./
+RUN bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
+    bundle exec bootsnap precompile --gemfile
+
+COPY . .
+RUN bundle exec bootsnap precompile app/ lib/
+RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
+
+# Stage 2: Final image based on CouchDB (all native deps included)
+FROM docker.io/library/couchdb:3.4
+
+WORKDIR /rails
+
+# Install runtime deps for Ruby (not Ruby itself — copied from build stage)
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      curl libjemalloc2 libyaml-0-2 && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# Copy Ruby 3.4.4 runtime from build stage (CouchDB base = Bullseye has old Ruby 2.7)
+COPY --from=build /usr/local/bin/ /usr/local/bin/
+COPY --from=build /usr/local/lib/ruby /usr/local/lib/ruby
+COPY --from=build /usr/local/lib/libruby* /usr/local/lib/
+COPY --from=build /usr/local/include/ruby* /usr/local/include/
+RUN ldconfig
+
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_PATH="/usr/local/bundle" \
+    BUNDLE_WITHOUT="development"
+
+# Copy built artifacts: gems, application
+COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --from=build /rails /rails
+
+# Verify Ruby and CouchDB both work
+RUN ruby --version && \
+    /opt/couchdb/bin/couchjs --version 2>&1 || true && \
+    echo "=== Ruby + CouchDB OK ==="
+
+# Create data directories and set permissions
+RUN mkdir -p /rails/couchdb-data /rails/log /rails/tmp && \
+    chown -R couchdb:couchdb /rails/couchdb-data /opt/couchdb && \
+    chmod +x /rails/bin/start-render.sh
+
+EXPOSE 10000
+
+ENV PORT=10000 \
+    COUCHDB_URL="http://admin:admin@127.0.0.1:5984"
+
+CMD ["/rails/bin/start-render.sh"]

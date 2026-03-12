@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-web
+  namespace: chatbot
+  labels:
+    app.kubernetes.io/name: chatbot-web
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: minigpt
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chatbot-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chatbot-web
+        app.kubernetes.io/component: web
+    spec:
+      initContainers:
+        - name: wait-for-couchdb
+          image: curlimages/curl:latest
+          envFrom:
+            - configMapRef:
+                name: chatbot-config
+          env:
+            - name: COUCHDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: COUCHDB_USER
+            - name: COUCHDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: COUCHDB_PASSWORD
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              COUCHDB_URL="http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@${COUCHDB_HOST}:${COUCHDB_PORT}"
+              echo "[init] Waiting for CouchDB at ${COUCHDB_HOST}:${COUCHDB_PORT}..."
+              until curl -sf "${COUCHDB_URL}/_up" > /dev/null 2>&1; do
+                sleep 2
+              done
+              echo "[init] CouchDB ready. Running single-node setup..."
+              curl -s -X POST "${COUCHDB_URL}/_cluster_setup" \
+                -H "Content-Type: application/json" \
+                -d "{\"action\":\"enable_single_node\",\"username\":\"${COUCHDB_USER}\",\"password\":\"${COUCHDB_PASSWORD}\",\"bind_address\":\"0.0.0.0\",\"port\":${COUCHDB_PORT}}" || true
+              for db in _users _replicator _global_changes; do
+                curl -s -X PUT "${COUCHDB_URL}/${db}" || true
+              done
+              echo "[init] CouchDB setup complete"
+      containers:
+        - name: rails
+          image: chatbot:latest
+          ports:
+            - containerPort: 80
+              name: http
+          envFrom:
+            - configMapRef:
+                name: chatbot-config
+          env:
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: RAILS_MASTER_KEY
+            - name: TAVILY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: TAVILY_API_KEY
+            - name: COUCHDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: COUCHDB_USER
+            - name: COUCHDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: COUCHDB_PASSWORD
+            - name: COUCHDB_URL
+              value: "http://$(COUCHDB_USER):$(COUCHDB_PASSWORD)@$(COUCHDB_HOST):$(COUCHDB_PORT)"
+          startupProbe:
+            httpGet:
+              path: /up
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /up
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /up
+              port: 80
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi

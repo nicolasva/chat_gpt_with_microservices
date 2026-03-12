@@ -1,0 +1,158 @@
+# Mots-clés d'intention pour la détection de sections Wikipedia
+#
+# seeds: mots de base enrichis automatiquement via Wiktionary (synonymes)
+# extra_words: mots ajoutés manuellement (verbes, formes spécifiques)
+# target_sections: mots-clés pour trouver la bonne section dans un article Wikipedia
+#
+# Le stemming singulier/pluriel est géré automatiquement par le code,
+# inutile de doubler "acteur"/"acteurs" etc.
+
+intents:
+  cast:
+    seeds:
+      - acteur
+      - actrice
+      - interprète
+      - protagoniste
+    extra_words:
+      - joue
+      - jouer
+      - jouent
+      - rôle
+      - casting
+      - distribution
+    target_sections:
+      - distribution
+      - casting
+      - acteur
+      - rôle
+      - interprétation
+      - personnage
+
+  treatment:
+    seeds:
+      - traitement
+      - médicament
+      - remède
+      - symptôme
+    extra_words:
+      - soigner
+      - guérir
+      - prendre
+      - soulager
+      - traiter
+    target_sections:
+      - traitement
+      - thérapeutique
+      - médicament
+      - pharmacologie
+      - soin
+      - urgence
+      - treatment
+      - medication
+
+  cause:
+    seeds:
+      - cause
+      - origine
+    extra_words:
+      - pourquoi
+      - raison
+    target_sections:
+      - cause
+      - origine
+      - physiopathologie
+      - étiologie
+      - origin
+
+  history:
+    seeds:
+      - histoire
+      - fondateur
+      - créateur
+    extra_words:
+      - créer
+      - créé
+      - crée
+      - cree
+      - inventé
+      - inventer
+      - historique
+      - fondatrice
+      - créatrice
+      - quand
+      - date
+      - origine
+      - né
+      - née
+      - naissance
+    target_sections:
+      - histoire
+      - historique
+      - création
+      - origin
+      - history
+
+  synopsis:
+    seeds:
+      - synopsis
+      - résumé
+      - intrigue
+    extra_words:
+      - histoire
+      - raconte
+      - parle
+      - sujet
+      - scénario
+    target_sections:
+      - synopsis
+      - résumé
+      - intrigue
+      - histoire
+
+  country:
+    seeds:
+      - pays
+      - état
+      - nation
+      - puissance
+    extra_words:
+      - possède
+      - possèdent
+      - détient
+      - détiennent
+      - dispose
+      - disposent
+      - membre
+      - liste
+      - lister
+      - lesquels
+      - lesquelles
+    target_sections:
+      - pays
+      - état
+      - puissance
+      - détenteur
+      - dotés
+      - arsenal
+      - membre
+      - liste
+      - monde
+
+# Mots indicateurs pour la recherche Wikipedia spécifique "liste + topic"
+# (utilisés dans search_wikipedia pour détecter les questions sur les pays/listes)
+country_indicators:
+  - pays
+  - état
+  - nation
+  - puissance
+  - puissant
+  - puissants
+  - puissantes
+  - possède
+  - détient
+  - membre
+  - liste
+  - lister
+  - lesquels
+  - lesquelles

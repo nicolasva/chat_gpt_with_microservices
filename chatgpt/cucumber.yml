@@ -1,0 +1,3 @@
+default: --format pretty --tags "not @slow"
+slow: --format pretty --tags "@slow"
+all: --format pretty

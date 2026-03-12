@@ -38,7 +38,7 @@ services:
 
   dataset-service:
     build:
-      context: ../microservices/dataset-service
+      context: ./microservices/dataset-service
       dockerfile: Dockerfile
     ports:
       - "3004:3004"
@@ -61,7 +61,7 @@ services:
 
   search-service:
     build:
-      context: ../microservices/search-service
+      context: ./microservices/search-service
       dockerfile: Dockerfile
     ports:
       - "3003:3003"
@@ -83,7 +83,7 @@ services:
 
   nlp-service:
     build:
-      context: ../microservices/nlp-service
+      context: ./microservices/nlp-service
       dockerfile: Dockerfile
     ports:
       - "3002:3002"
@@ -100,7 +100,7 @@ services:
 
   weather-service:
     build:
-      context: ../microservices/weather-service
+      context: ./microservices/weather-service
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
@@ -116,7 +116,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ./chatgpt
       dockerfile: Dockerfile
     environment:
       RAILS_ENV: production

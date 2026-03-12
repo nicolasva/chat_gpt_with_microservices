@@ -40,6 +40,6 @@ class MemoryStore
 
   def ensure_views!
     existing = @db.get("_design/memory") rescue nil
-    @db.save_doc(VIEW_BY_SESSION) if existing.nil?
+    @db.save_doc(Marshal.load(Marshal.dump(VIEW_BY_SESSION))) if existing.nil?
   end
 end
